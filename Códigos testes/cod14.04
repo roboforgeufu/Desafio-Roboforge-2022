@@ -1,0 +1,63 @@
+#!/usr/bin/env pybricks-micropython
+from pybricks.hubs import EV3Brick
+from pybricks.ev3devices import Motor, ColorSensor, GyroSensor
+from pybricks.parameters import Port, Color, Stop
+from pybricks.robotics import DriveBase
+from pybricks.tools import StopWatch, wait
+# Initialize the EV3 brick.
+ev3 = EV3Brick()
+# Initialize.
+motorB = Motor(Port.B)
+motorC = Motor(Port.C)
+motorD = Motor(Port.D)
+motorA = Motor(Port.A)
+sensorc1 = ColorSensor(Port.S1)
+sensorc2 = ColorSensor(Port.S2)
+sensorc3 = ColorSensor(Port.S3)
+sensorg4 = GyroSensor(Port.S4) 
+cronometro = StopWatch()
+
+def curva_giro(lado, angulo): #lado: 1 = sentido horario(direita)
+    sensorg4.reset_angle(0)   #      0 = sentido anti-horario(esquerda)
+    if(lado):
+        angAt = 0
+        while(angAt!=angulo):
+            angAt0 = angAt
+            angAt = sensorg4.angle()
+            prop = (angulo - angAt)*5 #Kp
+            deriv = (angAt - angAt0)*10 #Kd              
+            motorC.run(-5-prop-deriv)
+            motorB.run(5+prop+deriv)
+        motorC.hold()
+        motorB.hold()
+    else:
+        angAt = 0
+        while(angAt!=-angulo):
+            angAt0 = angAt
+            angAt = sensorg4.angle()
+            prop = (angulo - (-angAt))*5 #Kp
+            deriv = (angAt - angAt0)*10 #Kd              
+            motorC.run(5+prop+deriv)
+            motorB.run(-5-prop-deriv)
+        motorC.hold()
+        motorB.hold()
+
+def anda_reto_tempo(velBase,tempo):
+    angAt = 0
+    t = 0
+    sensorg4.reset_angle(0)
+    while(cronometro.time()<tempo):
+        angAt0 = angAt
+        angAt = sensorg4.angle()
+        prop = angAt*2 #Kp
+        deriv = (angAt - angAt0)*3 #Kd
+        if(0-angAt>0):
+            motorC.run(velBase+prop+deriv)
+            motorB.run(velBase-prop-deriv)
+        else:
+            motorC.run(velBase-prop-deriv)
+            motorB.run(velBase+prop+deriv)
+    motorC.hold()
+    motorB.hold()
+
+anda_reto_tempo(300,10000)   
