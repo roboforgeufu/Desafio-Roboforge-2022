@@ -14,126 +14,99 @@ motorA = Motor(Port.A)
 sensorc1 = ColorSensor(Port.S1)
 sensorc2 = ColorSensor(Port.S2)
 sensorc3 = ColorSensor(Port.S3)
-sensorc4 = ColorSensor(Port.S4)
 cronometro = StopWatch()
 #robo = DriveBase(test_motorB,test_motorC,8.5,24)
 
-def andar_igual_tempo(vel,time):
-    cronometro.reset()
-    ajuste = 0
-    while(cronometro.time()<time):
-        if(ajuste<1):
-            ajuste = ajuste + 0.002
-        motorC.run(vel*ajuste)
-        vC = motorC.speed()
-        motorB.run(vC) #joga o valor de vel lido para o segundo motor
-    motorB.hold()
-    motorC.hold()
-
-def andar_igual(vel):
-    motorB.run(vel)
-    vB = motorB.speed()
-    motorC.run(vB) #joga o valor de vel lido para o segundo motor
-
-def andar_bloco():
-    while(sensorc4.reflection()<10): #vai para frente até o bloco tampar o sensor
-        motorB.run(50)
-        vB = motorB.speed()
-        motorC.run(vB)
-    andar_igual_tempo(-50,400)
-    cor = sensorc3.color() #le a cor do bloco
-    andar_igual_tempo(-50,2600)
-    return cor
-
-def identifica_bloco():
-    mediaV=330 #velocidade media no duty cycle referido (340 bateria cheia)
-    n=0
-    media=[]
-    motorA.reset_angle(0)
-    while True:
-        motorA.dc(40)
-        velA=motorA.speed()
-        #print(velA)
-        if(velA>310): # 320 bateria cheia
-            media.append(velA) #joga os valores válidos (sem ruído) em uma lista
-            if(len(media)==5): #quando a lista atinge 5 valores calcula a média entre eles
-                for i in range(5): 
-                    mediaV = mediaV + media[i]
-                mediaV = mediaV/6
-                media.clear()
-                n=n+1
-        if(n>10 and mediaV<315): #descarta os 50 primeiros valores válidos (aceleração incial) antes de comparar
-
-            break
-    angGarra = motorA.angle()
-    if(angGarra<530):
-        return 1,angGarra #bloco grande
-    else:
-        return 0,angGarra #bloco pequeno
+def segue_linha(vel):
+    valorLum = 35 #medir na linha toda vez
+    Kp = 3
+    Ki = 0
+    Kd = 3
+    erro = 0
+    integral = 0
+    while True: #!!!TESTAR!!!
+        erro0 = erro
+        erro = valorLum - sensorc3.reflection()  
+        derivada = erro - erro0
+        integral = integral + erro
+        valorP = erro*Kp
+        valorI = integral*Ki
+        valorD = derivada*Kd
+        valorPID = valorP + valorI + valorD
+        if(valorPID>=0):
+            motorC.run(vel+valorPID)
+            motorB.run(vel+valorPID*0.5)
+        if(valorPID<0):
+            motorC.run(vel+(-valorPID*0.5))
+            motorB.run(vel+(-valorPID))
 
 def alinhar():
-    while(sensorc1.color()!=Color.BLACK or sensorc2.color()!=Color.BLACK):
-        andar_igual(100)
-        if(sensorc1.color()==Color.BLACK):  #alinhar com a linha preta
-            while(sensorc2.color()!=Color.BLACK):
-                motorB.hold()
-                motorC.run(50)
-            break
-        if(sensorc2.color()==Color.BLACK):
-            while(sensorc1.color()!=Color.BLACK):
-                motorC.hold()
-                motorB.run(50)
+    while(sensorc2.color()!=Color.BLACK and sensorc3.color()!=Color.BLACK):
+        motorC.run(50)
+        motorB.run(50) #identifica a linha preta
+    ev3.speaker.beep()
+    motorC.hold()
+    motorB.hold()
+    while(sensorc2.color()!=Color.BLACK):
+        motorB.run(50)
+    motorB.hold()
+    while(sensorc2.color()!=Color.WHITE): #alinha o motor B
+        motorB.run(50)
+    motorB.reset_angle(0)
+    ev3.speaker.beep()
+    motorB.hold()
+    motorB.run_target(50,-50,then=Stop.HOLD)
+    while(sensorc2.color()!=Color.WHITE):
+        motorB.run(-50)
+    ev3.speaker.beep()
+    motorB.hold()
+    angB = motorB.angle()
+    motorB.reset_angle(0)
+    motorB.run_target(50,-angB/2,then=Stop.HOLD)
+
+    while(sensorc3.color()!=Color.BLACK):
+        motorC.run(50)
+    motorC.hold()
+    while(sensorc3.color()!=Color.WHITE): #alinha o motor C
+        motorC.run(50)
+    motorC.reset_angle(0)
+    ev3.speaker.beep()
+    motorC.hold()
+    motorC.run_target(50,-50,then=Stop.HOLD)
+    while(sensorc3.color()!=Color.WHITE):
+        motorC.run(-50)
+    ev3.speaker.beep()
+    motorC.hold()
+    angC = motorC.angle()
+    motorC.reset_angle(0)
+    motorC.run_target(50,-angB/2,then=Stop.HOLD)
+        
+def deixa_bloco():
+    while(sensorc2.color()!=Color.BLACK and sensorc3.color()!=Color.BLACK):
+        motorC.run(50)
+        motorB.run(50)
+    ev3.speaker.beep()
+    motorC.hold()
+    motorB.hold()
+    while(sensorc2.color()!=Color.WHITE and sensorc3.color()!=Color.WHITE):
+        motorC.run(50)
+        motorB.run(50)
+    ev3.speaker.beep()
+    motorC.hold()
+    motorB.hold()
+    cronometro.reset()
+    while(cronometro.time()<3000):
+        motorA.dc(-40)
+
+def identifica_base():
+    while True:
+        segue_linha(100)
+        if(sensorc1.color()==Color.BLUE):
             break
 
 def main():
-    #alinhar()
-    andar_igual_tempo(200,25000)
-
-    motorD.reset_angle(0)
-    motorD.run_target(200,-80,then=Stop.HOLD)
-    angD = motorD.angle()
-    motorD.reset_angle(0)
-    motorD.run_target(200,-angD,then=Stop.HOLD)
-
-    cor_bloco = andar_bloco()
-    tam_bloco,ang = identifica_bloco()
-
-    motorA.reset_angle(0)
-    if(tam_bloco==0):
-        motorB.reset_angle(0)
-        motorB.run_target(200,-380,then=Stop.HOLD)
-        motorA.run_angle(300,-ang,then=Stop.HOLD) #devolve o bloco pequeno
-        motorB.run_target(200,0,then=Stop.HOLD)
-    else:
-        motorA.run_angle(300,300,then=Stop.HOLD) #termina de levantar o bloco grande
-        anguloGarra=ang+300
-        return
-
-    motorB.reset_angle(0)
-    motorB.run_target(200,380,then=Stop.HOLD)
+    while True:
+        if(sensorc1.color()==Color.BLUE):
+            ev3.speaker.beep()
 
 main()
-
-while True:
-    if(sensorc1.reflection()<20 and sensorc2.reflection()<20):
-        motorB.hold()
-        motorC.hold()
-        break
-    if(sensorc1.reflection()<60):
-        motorB.run(150*1.6)
-        vB = motorB.speed()
-        motorC.run(vB*0.625) #inverso da porcentagem
-    if(sensorc1.reflection()>65):
-        motorB.run(150)
-        vB = motorB.speed()
-        motorC.run(vB*1.6) #porcentagem de multiplicacao
-    else:
-        andar_igual(195) #media
-
-motorC.reset_angle(0)
-motorC.run_target(200,130,then=Stop.HOLD)
-angC = motorC.angle()
-andar_igual_tempo(200,1000)
-motorC.reset_angle(0)
-motorC.run_target(200,-angC,then=Stop.HOLD)
-andar_igual_tempo(200,2000)
