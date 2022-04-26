@@ -8,9 +8,9 @@ ev3 = EV3Brick()
 # Initialize.
 motorB = Motor(Port.B)
 motorC = Motor(Port.C)
-#motorD = Motor(Port.D)
+motorD = Motor(Port.D)
 motorA = Motor(Port.A)
-#sensorc1 = ColorSensor(Port.S1)
+sensorc1 = ColorSensor(Port.S1)
 sensorc2 = ColorSensor(Port.S2)
 sensorc3 = ColorSensor(Port.S3)
 sensorg4 = GyroSensor(Port.S4)
@@ -18,7 +18,7 @@ cronometro = StopWatch()
 
 ### MOVIMENTACAO ###
 
-def segue_linha_c2(vel):
+def segue_linha(vel):
     valorLum = 35 #medir na linha toda vez
     Kp = 3.5
     Ki = 0.05 
@@ -43,36 +43,9 @@ def segue_linha_c2(vel):
         motorC.run(vel-valorPID)
         motorB.run(vel+valorPID)
 
-        if(sensorc1.color()==Color.BLACK): check = check + 1 #prototipo
-        else: check = 0                                      #
-        if(check>=2000): break                               #
-
-    motorC.hold()
-    motorB.hold()
-
-def segue_linha_c3(vel):
-    valorLum = 35 #medir na linha toda vez
-    Kp = 3.5
-    Ki = 0.05
-    Kd = 10
-
-    erro = 0
-    valorI = 0
-    t = 0
-    while(sensorc1.color()!=Color.BLUE):
-        erro0 = erro
-        erro = valorLum - sensorc3.reflection()  
-        valorP = erro*Kp
-        if(-3<erro<3): valorI = (valorI+erro)*Ki
-        t0 = t
-        t = cronometro.time()
-        tempoDecor = t - t0
-        if(tempoDecor<1): tempoDecor = 1
-        valorD = ((erro - erro0)*Kd)/tempoDecor
-
-        valorPID = valorP + valorI + valorD
-        motorC.run(vel+valorPID)
-        motorB.run(vel-valorPID)
+        if(sensorc1.reflection()<5): check = check + 1 
+        else: check = 0   
+        if(check>=20): break     
 
     motorC.hold()
     motorB.hold()
@@ -80,8 +53,8 @@ def segue_linha_c3(vel):
 def curva_giro(angulo): #angulo positivo: direita, negativo: esquerda
     sensorg4.reset_angle(0)  
     Kp = 5 
-    Ki = 0.02
-    Kd = 10 
+    Ki = 0.4
+    Kd = 8
     
     angAt = 0
     t = 0
@@ -261,67 +234,67 @@ def deixa_bloco():
 ### LOGICA ###
 
 def identifica_bloco(array):
-    while True:
-        motorC.run(50)
-        motorB.run(50)
-        if(sensorc1.color()==Color.BLACK or sensorc1.color()==Color.BLUE or sensorc1.color()==Color.RED): 
-            check = check + 1
-        else: check = 0
-        if(check>=20): break
-    wait(100)
-    cor_bloco = sensorc1.color()
-    if(cor_bloco == Color.BLACK):
-        if(sensorc1.rgb()[2]>0): cor_bloco = Color.BLUE
-    if(cor_bloco == Color.BROWN): cor_bloco = Color.RED
-    ev3.speaker.beep()
-    motorC.hold()
-    motorB.hold()
-    motorB.reset_angle(0)
-
-    while True:
-        motorC.run(50)
-        motorB.run(50)
-        if(sensorc1.color()!=Color.BLACK and sensorc1.color()!=Color.BLUE and sensorc1.color()!=Color.RED): 
-            check = check + 1
-        else: check = 0
-        if(check>=500): break
-    ev3.speaker.beep()
-    motorC.hold()
-    motorB.hold()
-
-    ang = motorB.angle()
-    if(ang>100): tam_bloco = 1
-    else: tam_bloco = 0
-
-    array.append(tam_bloco)
-    array.append(cor_bloco)
-
-def main():
-    alinhar(50) #saida da base
-    anda_reto_graus(200,300)
-    curva_giro(60)
-    anda_reto_graus(200,400)
-    curva_giro(-60)
-    alinhar(100) #alinhado com a primeira linha
-    anda_reto_graus(200,100) 
-    curva_giro(-90)
-    anda_reto_graus(200,100) 
     cronometro.reset()
-    while(cronometro.time()<1200):
-        motorA.dc(80)
+    check = 0
+    while True:
+        motorC.run(50)
+        velC = motorC.speed()
+        motorB.run(velC)
+        if(sensorc1.reflection()>1):
+            check = check + 1
+        else: check = 0
+        if(check>=20):
+            motorC.hold()
+            motorB.hold()
+            anda_reto_graus(50,50) 
+            tam_bloco = 1
+            wait(100)
+            if(sensorc1.rgb()[0]>5): cor_bloco = Color.RED
+            elif(sensorc1.rgb()[2]>3): cor_bloco = Color.BLUE 
+            else: cor_bloco = Color.BLACK   
+            #array.append(sensorc1.rgb()[0])
+            #array.append(sensorc1.rgb()[1])
+            #array.append(sensorc1.rgb()[2])
+            break
+        if(cronometro.time()>5000): 
+            motorC.hold()
+            motorB.hold()
+            tam_bloco = 0
+            cor_bloco = sensorc1.color()
+            break
+    
+    array.append(cor_bloco)
+    array.append(tam_bloco)
+            
+def main():
+    velG = 200
+    relatorio = []
 
-    #relatorio = []
-    #anda_reto_linha(200)
-    #alinhar()
-    #identifica_bloco(relatorio)
-    #anda_reto_linha(200)
-    #alinhar()
-    #identifica_bloco(relatorio)
-    #anda_reto_linha(200)
-    #alinhar()
-    #identifica_bloco(relatorio)
+    alinhar(50) 
+    anda_reto_graus(velG,300)
+    curva_giro(60)
+    anda_reto_graus(velG,350)
+    curva_giro(-60)
 
-    #for x in relatorio:
-    #    print(x)
+    n = 0 
+    while(n!=3):
+        anda_reto_linha(velG)
+        alinhar(100)
+        identifica_bloco(relatorio)
+        wait(100)
+        if(relatorio[(n*2)]==Color.BLUE): break
+        n = n + 1
+    while(n!=3):
+        anda_reto_linha(velG)
+        alinhar(100)
+
+    curva_giro(90)
+    motorD.reset_angle(0)
+    motorD.run_target(300,350,then=Stop.BRAKE)
+    segue_linha(velG)
+    motorD.run_target(300,0,then=Stop.BRAKE)
+
+    for x in relatorio:
+        print(x)
 
 main()
