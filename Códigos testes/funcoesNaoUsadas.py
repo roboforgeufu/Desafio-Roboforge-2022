@@ -82,3 +82,126 @@ def identifica_bloco(array):
 
     array.append(tam_bloco)
     array.append(cor_bloco)
+    
+    def curva_giro(angulo): #angulo positivo: direita, negativo: esquerda
+    sensorg4.reset_angle(0)  
+    Kp = 5 
+    Ki = 0.4
+    Kd = 8
+    
+    angAt = 0
+    t = 0
+    integ = 0
+    erro = 0
+    while(angAt!=angulo):
+        angAt = sensorg4.angle()
+        erro0 = erro
+        erro = angulo - angAt
+
+        prop = erro*Kp
+        if(-3<erro<3): integ = integ+(erro*Ki)
+        t0 = t
+        t = cronometro.time()
+        tempoDecor = t - t0
+        if(tempoDecor<1): tempoDecor = 1
+        deriv = ((erro - erro0)*Kd)/tempoDecor
+
+        correcao = prop+integ+deriv
+        motorC.run(-5-correcao)
+        motorB.run(5+correcao)
+
+    motorC.hold()
+    motorB.hold()
+
+def anda_reto_linha(velBase):
+    Kp = 3 
+    Ki = 0.02
+    Kd = 3 
+
+    angAt = 0
+    t = 0
+    integ = 0
+    erro = 0
+    sensorg4.reset_angle(0)
+    while(sensorc2.color()!=Color.BLACK and sensorc3.color()!=Color.BLACK):
+        angAt = sensorg4.angle()
+        erro0 = erro
+        erro = -angAt
+
+        prop = erro*Kp 
+        if(-3<erro<3): integ = integ+(erro*Ki)
+        t0 = t
+        t = cronometro.time()
+        tempoDecor = t - t0
+        if(tempoDecor<1): tempoDecor = 1
+        deriv = ((erro - erro0)*Kd)/tempoDecor
+
+        correcao = prop+integ+deriv
+        motorC.run(velBase-correcao)
+        motorB.run(velBase+correcao)
+
+    motorC.hold()
+    motorB.hold()
+
+def anda_reto_tempo(velBase,tempo):
+    Kp = 3 
+    Ki = 0.02
+    Kd = 3 
+
+    angAt = 0
+    t = 0
+    integ = 0
+    erro = 0
+    sensorg4.reset_angle(0)
+    cronometro.reset()
+    while(cronometro.time()<tempo):
+        angAt = sensorg4.angle()
+        erro0 = erro
+        erro = -angAt
+
+        prop = erro*Kp 
+        if(-3<erro<3): integ = integ+(erro*Ki)
+        t0 = t
+        t = cronometro.time()
+        tempoDecor = t - t0
+        if(tempoDecor<1): tempoDecor = 1
+        deriv = ((erro - erro0)*Kd)/tempoDecor
+
+        correcao = prop+integ+deriv
+        motorC.run(velBase-correcao)
+        motorB.run(velBase+correcao)
+
+    motorC.hold()
+    motorB.hold()
+
+def anda_reto_graus(velBase,graus):
+    Kp = 3 
+    Ki = 0.02
+    Kd = 3 
+
+    angAt = 0
+    t = 0
+    integ = 0
+    erro = 0
+    sensorg4.reset_angle(0)
+    cronometro.reset()
+    motorB.reset_angle(0)
+    while(motorB.angle()<graus):
+        angAt = sensorg4.angle()
+        erro0 = erro
+        erro = -angAt
+
+        prop = erro*Kp 
+        if(-3<erro<3): integ = integ+(erro*Ki)
+        t0 = t
+        t = cronometro.time()
+        tempoDecor = t - t0
+        if(tempoDecor<1): tempoDecor = 1
+        deriv = ((erro - erro0)*Kd)/tempoDecor
+
+        correcao = prop+integ+deriv
+        motorC.run(velBase-correcao)
+        motorB.run(velBase+correcao)
+
+    motorC.hold()
+    motorB.hold()
