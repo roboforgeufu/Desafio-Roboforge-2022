@@ -1,6 +1,6 @@
 #!/usr/bin/env pybricks-micropython
 from pybricks.hubs import EV3Brick
-from pybricks.ev3devices import Motor, ColorSensor,GyroSensor
+from pybricks.ev3devices import Motor, ColorSensor
 from pybricks.parameters import Port, Color, Stop
 from pybricks.tools import StopWatch, wait
 # Initialize the EV3 brick.
@@ -8,12 +8,11 @@ ev3 = EV3Brick()
 # Initialize.
 motorB = Motor(Port.B)
 motorC = Motor(Port.C)
-#motorD = Motor(Port.D)
 motorA = Motor(Port.A)
 sensorc1 = ColorSensor(Port.S1)
 sensorc2 = ColorSensor(Port.S2)
 sensorc3 = ColorSensor(Port.S3)
-#sensorg4 = GyroSensor(Port.S4)
+sensorc4 = ColorSensor(Port.S4)
 cronometro = StopWatch()
 
 ### MOVIMENTACAO ###
@@ -104,8 +103,13 @@ def curva(angulo): #angulo positivo: direita, negativo: esquerda
         deriv = ((erro - erro0)*Kd)/tempoDecor
 
         correcao = prop+integ+deriv
-        motorC.run(-5-correcao)
-        motorB.run(5+correcao)
+        vel = 5 + correcao
+        if(vel<0):
+            if(vel>-5): vel = -5
+        else:
+            if(vel<5): vel = 5
+        motorC.run(-vel)
+        motorB.run(vel)
 
     motorC.hold()
     motorB.hold()
@@ -139,8 +143,8 @@ def anda_reto_linha(velBase):
     motorC.hold()
     motorB.hold()
 
-def anda_reto_graus(velBase,graus): #para dar ré os dois valores devem ser negativos
-    Kp = 3 
+def anda_reto_graus(velBase,graus,stop): #para dar ré os dois valores devem ser negativos
+    Kp = 3                               #stop 1: hold 2: brake 3: coast
     Ki = 0.02
     Kd = 3 
 
@@ -185,33 +189,22 @@ def anda_reto_graus(velBase,graus): #para dar ré os dois valores devem ser nega
             correcao = prop+integ+deriv
             motorC.run(velBase-correcao)
             motorB.run(velBase+correcao)
-
-    motorC.hold()
-    motorB.hold()
+    if(stop==1):
+        motorC.hold()
+        motorB.hold()
+    if(stop==2):
+        motorC.brake()
+        motorB.brake()
+    if(stop==3):
+        return
 
 def alinhar(vel):
     while(sensorc2.color()!=Color.BLACK and sensorc3.color()!=Color.BLACK):
         motorC.run(vel)
         motorB.run(vel) #identifica a linha preta
-    #ev3.speaker.beep()
+
     motorC.hold()
     motorB.hold()
-    while(sensorc2.color()!=Color.BLACK):
-        motorB.run(vel)
-    motorB.hold()
-    while(sensorc2.color()!=Color.WHITE): #alinha o motor B
-        motorB.run(vel)
-    motorB.reset_angle(0)
-    #ev3.speaker.beep()
-    motorB.hold()
-    motorB.run_target(vel,-50,then=Stop.HOLD)
-    while(sensorc2.color()!=Color.WHITE):
-        motorB.run(-vel)
-    #ev3.speaker.beep()
-    motorB.hold()
-    angB = motorB.angle()
-    motorB.reset_angle(0)
-    motorB.run_target(vel,-angB/2,then=Stop.HOLD)
 
     while(sensorc3.color()!=Color.BLACK):
         motorC.run(vel)
@@ -219,16 +212,34 @@ def alinhar(vel):
     while(sensorc3.color()!=Color.WHITE): #alinha o motor C
         motorC.run(vel)
     motorC.reset_angle(0)
-    #ev3.speaker.beep()
+
     motorC.hold()
     motorC.run_target(vel,-50,then=Stop.HOLD)
     while(sensorc3.color()!=Color.WHITE):
         motorC.run(-vel)
-    #ev3.speaker.beep()
+
+    while(sensorc2.color()!=Color.BLACK):
+        motorB.run(vel)
+    motorB.hold()
+    while(sensorc2.color()!=Color.WHITE): #alinha o motor B
+        motorB.run(vel)
+    motorB.reset_angle(0)
+
+    motorB.hold()
+    motorB.run_target(vel,-50,then=Stop.HOLD)
+    while(sensorc2.color()!=Color.WHITE):
+        motorB.run(-vel)
+
+    motorB.hold()
+    angB = motorB.angle()
+    motorB.reset_angle(0)
+    motorB.run_target(vel,-angB/2,then=Stop.HOLD)
+
+    FC = 0.8 #fator de correcao
     motorC.hold()
     angC = motorC.angle()
     motorC.reset_angle(0)
-    motorC.run_target(vel,-angB/2,then=Stop.HOLD)
+    motorC.run_target(vel,(-angB/2)*FC,then=Stop.HOLD)
         
 def deixa_bloco():
     while(sensorc2.color()!=Color.BLACK and sensorc3.color()!=Color.BLACK):
@@ -244,19 +255,16 @@ def deixa_bloco():
     motorC.hold()
     motorB.hold()
     cronometro.reset()
-    while(cronometro.time()<3000): motorA.dc(-40)
+    while(cronometro.time()<3300): motorA.dc(-40)
     motorA.hold()
 
-def pega_bloco(velG):
-    anda_reto_graus(-velG,-50)
-    curva(-230)
-    anda_reto_graus(-velG,-30)
+def pega_bloco(): 
     cronometro.reset()
     while(cronometro.time()<4000): motorA.dc(80-(cronometro.time()*0.022))
     motorA.hold()
     wait(500)
 
-def alinhar_linha(vel):
+def alinhar_linha(vel): ###
     while(sensorc3.color()!=Color.BLACK):
         motorC.run(vel)
         motorB.run(-vel)
@@ -288,7 +296,7 @@ def identifica_bloco(array):
         if(check>=20):
             motorC.hold()
             motorB.hold()
-            anda_reto_graus(50,50) 
+            anda_reto_graus(50,50,1) 
             tam_bloco = 1
             wait(100)
             if(sensorc1.reflection()>5):
@@ -315,80 +323,196 @@ def identifica_bloco(array):
             
 def main():
     velG = 300
-    relatorio = []
+    relatorio = [] 
 
     alinhar(50)
     motorA.reset_angle(0)
     motorA.run_target(300,-200)
-    anda_reto_graus(velG,300)
+    anda_reto_graus(velG,300,1)
     curva(145)
-    anda_reto_graus(velG,300)
+    anda_reto_graus(velG,300,1)
     curva(-145)
     n = 0 
+    flag = 0
     while(n!=3):
         anda_reto_linha(velG)
-        alinhar(100)
+        alinhar(velG/3)
         identifica_bloco(relatorio)
         wait(100)
         if(relatorio[(n*2)]==Color.BLACK): 
             flag = 1
-            break
+            pos = n
         n = n + 1
-        anda_reto_graus(velG,200)
+        if(n!=3): anda_reto_graus(velG,200,3)
+    
     if(flag):
-        pega_bloco(velG)
-        anda_reto_graus(-velG,-50)
+        n = 3
+        while(n!=pos):
+            anda_reto_linha(-velG)
+            alinhar(velG/3)
+            n = n - 1
+            if(n!=pos): anda_reto_graus(-velG,-200,3)
+        anda_reto_graus(velG,100,1)
         curva(-230)
-        anda_reto_graus(-velG,-150)
-        n = n + 1
+        anda_reto_graus(-velG,-30,1)
+        pega_bloco()
+        anda_reto_graus(-velG,-60,1)
+        curva(-230)
         while(n!=0):
             anda_reto_linha(velG)
-            alinhar(100)
-            anda_reto_graus(velG,200)
+            alinhar(velG/3)
+            anda_reto_graus(velG,200,3)
             n = n - 1
-        anda_reto_graus(velG,550)
+        anda_reto_graus(velG,580,1)
         curva(-220)
-        segue_linha_c3(velG,2000)
+        segue_linha_c3(velG,1000)
         curva(220)
         alinhar(velG/2)
         deixa_bloco()
-        anda_reto_graus(-velG,-100)
-        curva(220)
-        segue_linha_c2(velG,1000)
-        curva(220)
+        anda_reto_graus(-velG,-100,1)
+        curva(440)
+        relatorio[pos*2] = 'P_ent' #bloco preto entregue
 
         pos = 0
-        for x in relatorio:
-            if(x==Color.BLACK):
-                n = 0
+        n = 0
+        for x in range(2,-1,-2):
+            if(relatorio[x]==Color.BLACK):
+                pos = x
+                if(pos==0): n = 2
+                if(pos==2): n = 6
                 while(n!=pos):
                     anda_reto_linha(velG)
-                    alinhar(100)
-                    n = n + 2
-                    if(n!=pos): anda_reto_graus(velG,200)
-                ###
-                break
-            pos = pos + 1
-
-        for x in range(pos,len(relatorio),2):
-            if(relatorio[x]==Color.BLACK):
-                n = 0
-                while(n!=3):
+                    alinhar(velG/3)
+                    n = n - 2
+                    if(n!=pos): anda_reto_graus(velG,200,3)
+                anda_reto_graus(velG,115,1)
+                curva(-215)
+                wait(100)
+                while(sensorc4.ambient()>0):
+                    motorC.run(velG)
+                    velC = motorC.speed()
+                    motorB.run(velC)
+                motorC.hold()
+                motorB.hold()
+                anda_reto_graus(-velG,-80,1)
+                pega_bloco()
+                anda_reto_graus(-velG,-200,1)
+                curva(-225)
+                if(pos==2):
                     anda_reto_linha(velG)
-                    alinhar(100)
-                    n = n + 1
-                    if(n!=pos): anda_reto_graus(velG,200)
+                    alinhar(velG/3)
+                if(pos==0):
+                    anda_reto_graus(-velG,-200,3)
+                    anda_reto_linha(velG)
+                    alinhar(velG/3)
+                anda_reto_graus(velG,750,1)
+                curva(-220)
+                if(pos==2): segue_linha_c3(velG,3200)
+                if(pos==0): segue_linha_c3(velG,5000)
+                curva(220)
+                alinhar(velG/2)
+                deixa_bloco()
+                anda_reto_graus(-velG,-80,1)
+                curva(220)
+                if(pos==2): segue_linha_c2(velG,2200)
+                if(pos==0): segue_linha_c2(velG,4200)
+                curva(220)
+                relatorio[pos] = 'P_ent'
+
     
-    pos = 0
-    for x in relatorio:
-        if(x==Color.BLUE):
+        n = 0 
+        flag = 0
+        while(n!=3):
+            anda_reto_linha(velG)
+            alinhar(velG/3)
+            n = n + 1
+            if(n!=3): anda_reto_graus(velG,200,3)
+
+    for x in range(4,-1,-2):
+        if(relatorio[x]==Color.BLUE):
+            pos = x/2
+            n = 3
+            while(n!=pos):
+                anda_reto_linha(-velG)
+                alinhar(velG/3)
+                n = n - 1
+                if(n!=pos): anda_reto_graus(-velG,-200,3)
+            anda_reto_graus(velG,100,1)
+            curva(-215)
+            while(sensorc4.ambient()>0):
+                motorC.run(velG)
+                velC = motorC.speed()
+                motorB.run(velC)
+            motorC.hold()
+            motorB.hold()
+            anda_reto_graus(-velG,-80,1)
+            pega_bloco()
+            anda_reto_graus(-velG,-60,1)
+            curva(220)
+            n = n + 1
+            while(n!=3):
+                anda_reto_linha(velG)
+                alinhar(velG/3)
+                n = n + 1
+                if(n!=3): anda_reto_graus(velG,150,3)
+            if(pos==2):
+                anda_reto_graus(-velG,-150,1)
+                alinhar(velG/3)
+            anda_reto_graus(velG,250,1)
+            curva(220)
+            segue_linha_c2(velG,1200)
+            curva(-220)
+            alinhar(velG/2)
+            deixa_bloco()
+            anda_reto_graus(-velG,-100,1)
             curva(440)
-            n = 6
+            relatorio[int(pos)] = 'A_ent' #bloco azul entregue
+            break
+
+    pos = 0
+    n = 0
+    for x in range(2,-1,-2):
+        if(relatorio[x]==Color.BLUE):
+            pos = x
+            n = 4
+            anda_reto_graus(-velG,-100,1)
             while(n!=pos):
                 anda_reto_linha(velG)
-                alinhar(100)
+                alinhar(velG/3)
                 n = n - 2
-                if(n!=pos): anda_reto_graus(velG,200)
-
+                if(n!=pos): anda_reto_graus(velG,200,3)
+            anda_reto_graus(velG,115,1)
+            curva(225)
+            wait(100)
+            while(sensorc4.ambient()>0):
+                motorC.run(velG)
+                velC = motorC.speed()
+                motorB.run(velC)
+            motorC.hold()
+            motorB.hold()
+            anda_reto_graus(-velG,-80,1)
+            pega_bloco()
+            anda_reto_graus(-velG,-200,1)
+            curva(225)
+            if(pos==2):
+                anda_reto_linha(velG)
+                alinhar(velG/3)
+            if(pos==0):
+                anda_reto_linha(velG)
+                alinhar(velG/3)
+                anda_reto_linha(velG)
+                alinhar(velG/3)
+            anda_reto_graus(velG,250,1)
+            curva(220)
+            if(pos==2): segue_linha_c2(velG,3200)
+            if(pos==0): segue_linha_c2(velG,5000)
+            curva(-220)
+            alinhar(velG/2)
+            deixa_bloco()
+            anda_reto_graus(-velG,-80,1)
+            curva(-220)
+            if(pos==2): segue_linha_c3(velG,2200)
+            if(pos==0): segue_linha_c3(velG,4200)
+            curva-(220)
 
 main()
