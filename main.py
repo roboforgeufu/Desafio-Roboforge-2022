@@ -264,23 +264,6 @@ def pega_bloco():
     motorA.hold()
     wait(500)
 
-def alinhar_linha(vel): ###
-    while(sensorc3.color()!=Color.BLACK):
-        motorC.run(vel)
-        motorB.run(-vel)
-    motorC.hold()
-    motorB.hold()
-    motorC.reset_angle(0)
-    motorB.reset_angle(0)
-    while(sensorc2.color()!=Color.BLACK):
-        motorC.run(-vel)
-        motorB.run(vel)
-    ang = (motorC.angle() - motorB.angle())/2
-    motorC.hold()
-    motorB.hold()
-    curva(ang/2)
-
-
 ### LOGICA ###
 
 def identifica_bloco(array):
@@ -475,7 +458,6 @@ def main():
         if(relatorio[x]==Color.BLUE):
             pos = x
             n = 4
-            anda_reto_graus(-velG,-100,1)
             while(n!=pos):
                 anda_reto_linha(velG)
                 alinhar(velG/3)
